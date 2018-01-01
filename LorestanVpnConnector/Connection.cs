@@ -8,6 +8,7 @@ namespace LorestanVpnConnector
         {
             try
             {
+                
                 var str = new WebClient().DownloadString("http://internet.lu.ac.ir/");
                 return true;
             }

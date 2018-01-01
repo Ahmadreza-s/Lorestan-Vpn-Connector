@@ -16,11 +16,11 @@ namespace LorestanVpnConnector
     public partial class MainWindow
     {
 
-        private Connection _connection=new Connection();
+        private readonly Connection _connection=new Connection();
 
-        private Thread thread;
+        private readonly Thread _thread;
 
-        private bool StopThread = true;
+        private bool _stopThread = true;
 
         enum ButtonState
         {
@@ -32,16 +32,18 @@ namespace LorestanVpnConnector
 
 
 
-        private ButtonState bt = ButtonState.None;
-        private int Index = 0;
+        private ButtonState _bt = ButtonState.None;
+        private int _index;
 
-        private System.Windows.Forms.NotifyIcon ni;
+        private ProgressDialogController _pdc;
+
+        private readonly System.Windows.Forms.NotifyIcon _ni;
         protected override void OnStateChanged(EventArgs e)
         {
             if (WindowState == WindowState.Minimized)
             {
                 Hide();
-                ni.Visible = true;
+                _ni.Visible = true;
             }
 
             base.OnStateChanged(e);
@@ -49,47 +51,72 @@ namespace LorestanVpnConnector
         public MainWindow()
         {
 
-
-            ni =
+            _ni =
                 new System.Windows.Forms.NotifyIcon
                 {
                     Icon = Properties.Resources.icons8_VPN_64_png,
                     Visible = true,
-                    Text = "Lorestan Vpn Connector"
+                    Text = @"Lorestan Vpn Connector"
                 };
-            ni.Click +=
+            _ni.Click +=
                 delegate
                 {
                     Show();
-                    ni.Visible = false;
+                    _ni.Visible = false;
                     WindowState = WindowState.Normal;
                 };
 
-            thread = new Thread(() =>
+            _thread = new Thread(() =>
             {
                 while (true)
                 {
-                    while (StopThread)
+
+                    while (_stopThread)
                     {
                     }
 
-                    if (Index >= Accounts.Count)
+                    if (_index >= Accounts.Count)
                     {
-                        Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) delegate
+                        Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)delegate
                         {
                             StartButton.IsEnabled = true;
                             Status.Title = "Finish";
-                            StatusIcon.Visual = (Visual) TryFindResource("appbar_check");
-                            bt=ButtonState.None;
+                            StatusIcon.Visual = (Visual)TryFindResource("appbar_check");
+                            _bt = ButtonState.None;
                             StartButton.Content = "Start";
                             Slider.IsEnabled = true;
-                            StopThread = true;
+                            _stopThread = true;
                         });
-                        
+
                         continue;
 
                     }
+                    
+                    #region CheckWifi
 
+                    if (!_connection.IsWifiConnected())
+                    {
+                        Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) async delegate
+                        {
+                            _pdc = await this.ShowProgressAsync("Network Problem", "Make Sure You're Connected to Lorestan Network !",true);
+                            _pdc.Canceled += (o, args) =>
+                            {
+                               DisconnectedMode();
+                                _pdc.CloseAsync();
+                            };
+                            _pdc.SetIndeterminate();
+                        });
+                        
+
+                        while (!_connection.IsWifiConnected()) {}
+                        if(_pdc.IsOpen)
+                            _pdc.CloseAsync();
+                    }
+
+                   
+
+                    #endregion
+                
                     #region CheckInternet
 
                     try
@@ -97,46 +124,33 @@ namespace LorestanVpnConnector
 
                         if (!_connection.IsConnected())
                         {
-                            Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) delegate
-                            {
-                                Status.Title = "Checking";
-                                StatusIcon.Visual = (Visual) TryFindResource("appbar_progress");
-                                CurrentUsername.Content = "--";
-                                CurrentPassword.Content = "--";
-                                Slider.Value = Index;
-                            });
+                            Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) CheckingMode);
 
 
-                            var user = Accounts.Keys.ElementAt(Index);
+                            var user = Accounts.Keys.ElementAt(_index);
                             var password = Accounts[user];
                             if (_connection.Login(user, password))
                             {
                                 //connect shod
                                 Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)delegate
                                 {
-                                    Status.Title = "Connected";
-                                    StatusIcon.Visual = (Visual)TryFindResource("appbar_connection_quality_veryhigh");
                                     CurrentUsername.Content = user;
                                     CurrentPassword.Content = password;
-                                    Slider.Value = Index;
+                                    ConnectedMode();
                                 });
                             }
                             else 
-                                Index++;
+                                _index++;
                             
                         }
                         else
                         {
-                            Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) delegate
-                            {
-                                Status.Title = "Connected";
-                                StatusIcon.Visual = (Visual) TryFindResource("appbar_connection_quality_veryhigh");
-                                Slider.Value = Index;
-                            });
+                            Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) ConnectedMode);
                         }
                     }
                     catch
                     {
+                        // ignored
                     }
 
                     #endregion
@@ -147,35 +161,13 @@ namespace LorestanVpnConnector
             }) {IsBackground = false};
 
 
-            thread.Start();
+            _thread.Start();
 
             InitializeComponent();
 
 
         }
 
-        void Connect(string username, string password)
-        {
-
-            var resp = new MyWebRequest("http://internet.lu.ac.ir/login", "POST",
-                $"username={username}&password={password}").GetResponse();
-            if (!resp.Contains("login"))
-            {
-                //connect shod
-                Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart)delegate
-                {
-                    Status.Title = "Connected";
-                    StatusIcon.Visual = (Visual)TryFindResource("appbar_connection_quality_veryhigh");
-                    CurrentUsername.Content = username;
-                    CurrentPassword.Content = password;
-                    Slider.Value = Index;
-                });
-
-            }
-
-
-        }
-        
         private void LoadFileButton_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new OpenFileDialog
@@ -217,7 +209,7 @@ namespace LorestanVpnConnector
                         }
 
                     }
-                    catch(Exception exception)
+                    catch(Exception)
                     {
                         this.ShowMessageAsync("Error", "Something bad is happened :(");
                     }
@@ -237,70 +229,85 @@ namespace LorestanVpnConnector
                                                     "\nHave Fun :)");
         }
 
-        private void StartButton_Click(object sender, RoutedEventArgs e)
+        private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
+            
+            
             if (!_connection.IsWifiConnected())
             {
-                this.ShowMessageAsync("Network Problem", "Make Sure You're Connected to Lorestan Network !");
+                await this.ShowMessageAsync("Network Problem", "Make Sure You're Connected to Lorestan Network !");
                 return;
             }
 
             if (Accounts.Count == 0)
             {
-                this.ShowMessageAsync("Error", "Account List is Empty !");
+                await this.ShowMessageAsync("Error", "Account List is Empty !");
                 return;
             }
 
             GroupBox1.IsEnabled = false;
 
-            if (bt == ButtonState.Stop || bt == ButtonState.None)
+            if (_bt == ButtonState.Stop || _bt == ButtonState.None)
+                CheckingMode();
+            else if (_bt == ButtonState.Start)
             {
-                bt = ButtonState.Start;
-                StopThread = false;
-
-                StartButton.Content = "Stop";
-
-                Status.Title = "Checking";
-                StatusIcon.Visual = (Visual)TryFindResource("appbar_progress");
-
-                Slider.IsEnabled = false;
-
-            }
-            else if (bt == ButtonState.Start)
-            {
-                bt = ButtonState.Stop;
-                StopThread = true;
-                StartButton.Content = "Start";
-
-                Slider.Value = Index;
-
-                Status.Title = "Disconnected";
-                StatusIcon.Visual = (Visual)TryFindResource("appbar_connection_quality_extremelylow");
+                DisconnectedMode();
                 try
                 {
                     _connection.Logout();
                 }
-                catch { }
-
-                Slider.IsEnabled = true;
+                catch
+                {
+                }
+                
             }
-
-
-
-
-
-
         }
 
         private void MetroWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             try
             {
-                thread.Abort();
+                _thread.Abort();
             }
             catch { }
         }
 
-        private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => Index = Convert.ToInt32(e.NewValue);
+        private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => _index = Convert.ToInt32(e.NewValue);
+
+
+        void CheckingMode()
+        {
+            _bt = ButtonState.Start;
+            _stopThread = false;
+            StartButton.Content = "Stop";
+            Status.Title = "Checking";
+            StatusIcon.Visual = (Visual)TryFindResource("appbar_progress");
+            Slider.IsEnabled = false;
+            CurrentUsername.Content = "--";
+            CurrentPassword.Content = "--";
+            Slider.Value = _index;
+        }
+
+        void ConnectedMode()
+        {
+            Status.Title = "Connected";
+            StatusIcon.Visual = (Visual)TryFindResource("appbar_connection_quality_veryhigh");
+            Slider.Value = _index;
+            StartButton.Content = "Stop";
+            Slider.IsEnabled = false;
+            _bt = ButtonState.Start;
+        }
+
+        void DisconnectedMode()
+        {
+            _bt = ButtonState.Stop;
+            _stopThread = true;
+            StartButton.Content = "Start";
+            Slider.Value = _index;
+            Slider.IsEnabled = true;
+            Status.Title = "Disconnected";
+            StatusIcon.Visual = (Visual)TryFindResource("appbar_connection_quality_extremelylow");
+
+        }
     }
 }
