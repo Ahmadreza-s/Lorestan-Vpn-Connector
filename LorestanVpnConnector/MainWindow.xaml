@@ -5,27 +5,73 @@
                       xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                       mc:Ignorable="d"
-                      Title="Lorestan Vpn Connector V1.2" Height="325" Width="447.794" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Closing="MetroWindow_Closing" Icon="Resources/icons8-VPN-64.png">
+                      Title="Lorestan Vpn Connector V1.3" Height="325" Width="447.794" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen" Closing="MetroWindow_Closing"  Icon="Resources/icons8-VPN-64.png">
     <Controls:MetroWindow.RightWindowCommands>
         <Controls:WindowCommands>
+            <Button x:Name="ThemeButton" Click="ThemeButton_OnClick">
+                <StackPanel Orientation="Horizontal">
+                    <Rectangle Width="20"
+                               Height="20"
+                               Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}">
+                        <Rectangle.OpacityMask>
+                            <VisualBrush Stretch="Uniform" Visual="{StaticResource appbar_clothes_shirt}" />
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+
+                </StackPanel>
+            </Button>
             <Button x:Name="InfoButton" Click="InfoButton_OnClick">
                 <StackPanel Orientation="Horizontal">
                     <Rectangle Width="20"
                                Height="20"
                                Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}">
                         <Rectangle.OpacityMask>
-                            <VisualBrush Stretch="Fill" Visual="{StaticResource appbar_information_circle}" />
+                            <VisualBrush Stretch="Uniform" Visual="{StaticResource appbar_information_circle}" />
                         </Rectangle.OpacityMask>
                     </Rectangle>
-                    <TextBlock Margin="4 0 0 0"
-                               VerticalAlignment="Center"
-                               Text="About" />
+
                 </StackPanel>
             </Button>
-
-
         </Controls:WindowCommands>
     </Controls:MetroWindow.RightWindowCommands>
+    <Controls:MetroWindow.Flyouts>
+        <Controls:FlyoutsControl>
+            <Controls:Flyout x:Name="AboutFlyout" Header="About Us" Position="Left" Width="200" AnimateOpacity="True" IsModal="True"  IsPinned="False" >
+                <TextBlock Margin="10,10,5,0" TextWrapping="Wrap" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                    <Bold>
+                        <Run Text="Lorestan Vpn Connector v1.3"/>    
+                    </Bold>
+                    <LineBreak/>
+                    <Italic>
+                        <Run Text="By : Ahmadreza Salehvand"/>
+                    </Italic>
+                    
+                    <LineBreak/>
+                    <LineBreak/>
+                    <Italic>
+                        <Bold><Run Text="Testers : "/></Bold><LineBreak/>
+                        <Run Text="Reza Akrami"/><LineBreak/>
+                        <Run Text="Hamid Bayati"/><LineBreak/>
+                        <Run Text="Sajad Esmaeili"/><LineBreak/>
+                        <Run Text="Afshin Zafari"/><LineBreak/>
+                    </Italic>
+                    
+                </TextBlock>
+            </Controls:Flyout>
+            <Controls:Flyout x:Name="SkinFlyout" Header="Skins" Position="Right" Width="200" AnimateOpacity="True" IsModal="True"  IsPinned="False" >
+                <Grid>
+                    <StackPanel Orientation="Vertical">
+                        <Label>Theme : </Label>
+                        <ComboBox x:Name="Themes" IsReadOnly="True" Controls:TextBoxHelper.Watermark="Themes" Width="190"></ComboBox>
+                        <Label>Accent :</Label>
+                        <ComboBox x:Name="Accents" IsReadOnly="True" Controls:TextBoxHelper.Watermark="Colors" Width="190"></ComboBox>
+
+                    </StackPanel>
+                    <Button VerticalAlignment="Bottom" x:Name="SaveChangesButton" Click="SaveChangesButton_OnClick" HorizontalAlignment="Stretch" Margin="5,0,5,5"  Controls:ControlsHelper.ContentCharacterCasing="Normal">Save Changes</Button>
+                </Grid>
+            </Controls:Flyout>
+        </Controls:FlyoutsControl>
+    </Controls:MetroWindow.Flyouts>
     <Grid>
 
         <StackPanel>

@@ -4,10 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using MahApps.Metro;
+using MahApps.Metro.Controls;
 using MahApps.Metro.Controls.Dialogs;
 using Microsoft.Win32;
+using MessageBox = System.Windows.Forms.MessageBox;
 
 
 namespace LorestanVpnConnector
@@ -98,25 +102,35 @@ namespace LorestanVpnConnector
                     {
                         Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, (ThreadStart) async delegate
                         {
-                            _pdc = await this.ShowProgressAsync("Network Problem", "Make Sure You're Connected to Lorestan Network !",true);
-                            _pdc.Canceled += (o, args) =>
+                            if (_pdc == null || !_pdc.IsOpen) 
                             {
-                               DisconnectedMode();
-                                _pdc.CloseAsync();
-                            };
-                            _pdc.SetIndeterminate();
+                                _pdc = await this.ShowProgressAsync("Network Problem",
+                                    "Make Sure You're Connected to Lorestan University Network !", true);
+                                _pdc.Canceled += (o, args) =>
+                                {
+                                    DisconnectedMode();
+                                    _pdc.CloseAsync();
+                                };
+                                _pdc.SetIndeterminate();
+                            }
+                            
                         });
-                        
 
-                        while (!_connection.IsWifiConnected()) {}
-                        if(_pdc.IsOpen)
+
+                        while (!_connection.IsWifiConnected())
+                            Thread.Sleep(1000);
+                        if (_pdc != null && _pdc.IsOpen) 
                             _pdc.CloseAsync();
                     }
 
-                   
+
 
                     #endregion
-                
+
+                    while (_stopThread)
+                    {
+                    }
+
                     #region CheckInternet
 
                     try
@@ -163,9 +177,19 @@ namespace LorestanVpnConnector
 
             _thread.Start();
 
+
+            
+
             InitializeComponent();
 
+            var themes = Skin.GetAllThemes();
+            Themes.ItemsSource = themes;
+            Themes.SelectedIndex = themes.FindIndex(c => c == Skin.GetTheme());
 
+            var accents = Skin.GetAllAccents();
+            Accents.ItemsSource = accents;
+            Accents.SelectedIndex = accents.FindIndex(c => c == Skin.GetAccent());
+            
         }
 
         private void LoadFileButton_Click(object sender, RoutedEventArgs e)
@@ -217,17 +241,7 @@ namespace LorestanVpnConnector
             }
         }
 
-        private async void InfoButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            await this.ShowMessageAsync("About Us", "Lorestan Vpn Connector V1.1\n" +
-                                                    "\nCoded By :\nAhmadreza Salehvand\n\n" +
-                                                    "Testers : \n" +
-                                                    "Reza Akrami\nHamid Bayati\nSajad Esmaeili\nAfshin Zafari\n" +
-                                                    "\nAnd Special Thanks to :\n" +
-                                                    "Mehran Arjang(Shirani)\n" +
-                                                    "Ali Dehghani\n" +
-                                                    "\nHave Fun :)");
-        }
+        private void InfoButton_OnClick(object sender, RoutedEventArgs e) => AboutFlyout.IsOpen = true;
 
         private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
@@ -235,7 +249,7 @@ namespace LorestanVpnConnector
             
             if (!_connection.IsWifiConnected())
             {
-                await this.ShowMessageAsync("Network Problem", "Make Sure You're Connected to Lorestan Network !");
+                await this.ShowMessageAsync("Network Problem", "Make Sure You're Connected to Lorestan University Network !");
                 return;
             }
 
@@ -308,6 +322,15 @@ namespace LorestanVpnConnector
             Status.Title = "Disconnected";
             StatusIcon.Visual = (Visual)TryFindResource("appbar_connection_quality_extremelylow");
 
+        }
+
+        private void ThemeButton_OnClick(object sender, RoutedEventArgs e) => SkinFlyout.IsOpen = true;
+
+        private void SaveChangesButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            Skin.SetAccentColor(Accents.SelectedValue.ToString());
+            Skin.SetTheme(Themes.SelectedValue.ToString());
+            SkinFlyout.IsOpen = false;
         }
     }
 }
